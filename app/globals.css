@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #1D2532;
+  --slate: #4A5468;
+  --paper: #F2EDE4;
+  --mist: #E5DCC9;
+  --gold: #D9CAB8;
+  --accent: #8C7758;
+  --accent-soft: #B8A485;
+  --line: rgba(29, 37, 50, 0.16);
+}
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.75rem;
+  color: var(--slate);
+}
+
+.hairline { border-top: 1px solid var(--line); }
+
+.display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  font-weight: 500;
+}
+
+.field-label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  color: var(--slate);
+}
+
+.input {
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0;
+  outline: none;
+  width: 100%;
+  color: var(--ink);
+  font-size: 1rem;
+}
+.input:focus { border-bottom-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
