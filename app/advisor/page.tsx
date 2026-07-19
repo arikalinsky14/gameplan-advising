@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ScrollReveal from "@/components/ScrollReveal";
-import { prisma } from "@/lib/db";
+import { prisma, isDbConfigured } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROSTER as MOCK_ROSTER, STATUS_LABEL, FLAG_LABEL } from "@/content/roster";
 
@@ -46,6 +46,7 @@ function relativeTime(d: Date) {
 }
 
 async function loadRoster(): Promise<Row[]> {
+  if (!isDbConfigured()) return MOCK_ROSTER.map((a) => ({ ...a, live: false }));
   try {
     const athletes = await prisma.athlete.findMany({
       orderBy: { updatedAt: "desc" },
@@ -72,9 +73,14 @@ async function loadRoster(): Promise<Row[]> {
 }
 
 export default async function AdvisorRosterPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (session.role !== "ADVISOR") redirect("/intake");
+  // If the DB isn't configured yet (fresh Vercel deploy without DATABASE_URL),
+  // let the roster render the mock content so reviewers can see the layout
+  // without needing to sign in.
+  if (isDbConfigured()) {
+    const session = await getSession();
+    if (!session) redirect("/login");
+    if (session.role !== "ADVISOR") redirect("/intake");
+  }
 
   const rows = await loadRoster();
   const anyLive = rows.some((r) => r.live);

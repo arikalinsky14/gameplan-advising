@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import ScrollReveal from "@/components/ScrollReveal";
-import { prisma } from "@/lib/db";
+import { prisma, isDbConfigured } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROSTER as MOCK_ROSTER, STATUS_LABEL, FLAG_LABEL } from "@/content/roster";
 
@@ -29,6 +29,10 @@ const STATUS_MAP: Record<string, Athlete["status"]> = {
 };
 
 async function loadAthlete(id: string): Promise<Athlete | null> {
+  if (!isDbConfigured()) {
+    const m = MOCK_ROSTER.find((r) => r.id === id);
+    return m ? { ...m } : null;
+  }
   try {
     const a = await prisma.athlete.findUnique({ where: { id } });
     if (a) {
@@ -53,14 +57,18 @@ async function loadAthlete(id: string): Promise<Athlete | null> {
 }
 
 export default async function AthleteDetail({ params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (session.role !== "ADVISOR") redirect("/intake");
+  if (isDbConfigured()) {
+    const session = await getSession();
+    if (!session) redirect("/login");
+    if (session.role !== "ADVISOR") redirect("/intake");
+  }
 
   const athlete = await loadAthlete(params.id);
   if (!athlete) notFound();
 
-  const goalCount = await prisma.goal.count({ where: { athleteId: athlete.id } }).catch(() => 0);
+  const goalCount = isDbConfigured()
+    ? await prisma.goal.count({ where: { athleteId: athlete.id } }).catch(() => 0)
+    : 0;
 
   return (
     <section className="py-16 md:py-24">
