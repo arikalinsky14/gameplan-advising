@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { CerityLogo } from "./CerityLogo";
+import { getSession } from "@/lib/auth";
+import { logout } from "@/app/actions/auth";
 
-export default function Nav() {
+export default async function Nav() {
+  const session = await getSession();
+
   return (
     <header className="sticky top-0 z-30 backdrop-blur bg-paper/85 border-b border-line">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -15,16 +19,34 @@ export default function Nav() {
           </span>
           <span className="eyebrow ml-2 hidden md:inline">Internal · Advisor tool</span>
         </Link>
+
         <nav className="flex items-center gap-6 text-sm">
-          <Link href="/advisor" className="hover:text-accent">Roster</Link>
-          <Link href="/intake" className="hover:text-accent">Client intake</Link>
+          {session?.role === "ADVISOR" && (
+            <Link href="/advisor" className="hover:text-accent">Roster</Link>
+          )}
+          {session?.role === "CLIENT" && (
+            <Link href="/intake" className="hover:text-accent">My intake</Link>
+          )}
           <Link href="/tools/jock-tax" className="hover:text-accent">Jock tax</Link>
-          <Link
-            href="/advisor"
-            className="rounded-full border border-ink/20 px-4 py-1.5 hover:bg-ink hover:text-paper transition"
-          >
-            Open dashboard
-          </Link>
+          <Link href="/tools/consolidated-tax" className="hover:text-accent hidden md:inline">Consolidated tax</Link>
+
+          {session ? (
+            <form action={logout}>
+              <button className="rounded-full border border-ink/20 px-4 py-1.5 hover:bg-ink hover:text-paper transition">
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <>
+              <Link href="/login" className="hover:text-accent">Sign in</Link>
+              <Link
+                href="/signup"
+                className="rounded-full border border-ink/20 px-4 py-1.5 hover:bg-ink hover:text-paper transition"
+              >
+                Create account
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

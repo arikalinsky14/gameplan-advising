@@ -1,0 +1,195 @@
+// Game Plan Action — Prisma schema
+//
+// Data model for the internal advisor tool. Every field the intake/tools
+// collect lives here. Auth is credentials-based; sessions are JWT cookies
+// (see lib/auth.ts), so no separate Session table is needed.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A single login. Either an Advisor or a Client.
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  role          Role
+  displayName   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // If role = CLIENT, this is the athlete they own.
+  athlete       Athlete? @relation("AthleteOwner")
+
+  // Guardians are Users (role = GUARDIAN) with co-access to specific athletes.
+  guardianships GuardianAccess[]
+
+  // Every advisor edit is logged for the accuracy feedback loop.
+  overrides     Override[]
+}
+
+enum Role {
+  ADVISOR
+  CLIENT
+  GUARDIAN
+}
+
+// An athlete account. Advisors see the full roster; clients see their own.
+model Athlete {
+  id             String   @id @default(cuid())
+  ownerId        String   @unique
+  owner          User     @relation("AthleteOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  firstName      String
+  lastName       String
+  dob            DateTime?
+  classYear      String?
+  homeState      String?   // legal domicile — asked directly
+  isMinor        Boolean   @default(false)
+
+  sport          String?   // "Men's Football" | "Men's Basketball" | ...
+  sportTier      Int?      // 1 | 2
+  teamId         String?   // FK-ish to content/teams.ts id
+  teamSchool     String?
+  teamManualNote String?   // set when the athlete used the "can't find your team" path
+
+  status         IntakeStatus @default(NOT_STARTED)
+  flags          String[]     // "state-compliance" | "entity" | "insurance"
+
+  // NIL & tax data
+  nilIncomeYtd   Float    @default(0)
+  scholarshipTaxable Float @default(0)
+  competingStates String[] @default([])
+  domicileAmbiguousFlag Boolean @default(false)
+
+  // Related records
+  goals          Goal[]
+  contracts      Contract[]
+  expenses       Expense[]
+  taxSnapshots   TaxSnapshot[]
+  overrides      Override[]
+  guardians      GuardianAccess[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum IntakeStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PLAN_GENERATED
+  SYNCED_TO_EMONEY
+}
+
+model GuardianAccess {
+  id        String  @id @default(cuid())
+  athleteId String
+  athlete   Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([athleteId, userId])
+}
+
+// Goals Module — maps 1:1 to eMoney expense records with isGoal: true.
+model Goal {
+  id         String   @id @default(cuid())
+  athleteId  String
+  athlete    Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  bucket     GoalBucket
+  text       String
+  years      String   // e.g. "2026-2027" — free-form on the client, structured on export
+  amount     Float?   // optional; eMoney expects an amount on export
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum GoalBucket {
+  SHORT
+  MEDIUM
+  LONG
+}
+
+// Contract & Payment extraction (Section 7-B / 7-H).
+model Contract {
+  id             String   @id @default(cuid())
+  athleteId      String
+  athlete        Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  brand          String
+  grossAmount    Float
+  agentFeePct    Float    // 0-1
+  nonCashFmv     Float    @default(0)
+  paymentSchedule String?  // "monthly", "quarterly", "one-time"
+  termStart      DateTime?
+  termEnd        DateTime?
+  exclusivity    String?
+  deliverables   String?
+
+  // Vault mirror — the original PDF stays alongside the extracted numbers.
+  vaultDocumentUrl String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Expense form line items — feeds the deductible-expense side of tool C.
+model Expense {
+  id         String   @id @default(cuid())
+  athleteId  String
+  athlete    Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  category   String   // "rent", "training", "recovery", etc.
+  amount     Float
+  athleteSpecific Boolean @default(false)
+  deductible Boolean  @default(false)
+  note       String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// A saved tax calculation snapshot — jock tax or consolidated. Retained so
+// advisors can see how numbers changed run-to-run.
+model TaxSnapshot {
+  id            String   @id @default(cuid())
+  athleteId     String
+  athlete       Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  kind          TaxSnapshotKind
+  inputJson     Json
+  outputJson    Json
+  refined       Boolean @default(false)
+  createdBy     String?
+
+  createdAt     DateTime @default(now())
+}
+
+enum TaxSnapshotKind {
+  JOCK_TAX
+  CONSOLIDATED
+}
+
+// Advisor override log — the accuracy feedback loop from the outline.
+model Override {
+  id         String   @id @default(cuid())
+  athleteId  String
+  athlete    Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  advisorId  String
+  advisor    User     @relation(fields: [advisorId], references: [id])
+
+  field      String   // dot-path of what was changed, e.g. "goal.amount"
+  fromValue  String?
+  toValue    String?
+  reason     String
+
+  createdAt  DateTime @default(now())
+}

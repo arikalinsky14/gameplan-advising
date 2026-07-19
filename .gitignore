@@ -6,3 +6,6 @@ out/
 .DS_Store
 *.log
 next-env.d.ts
+
+# Prisma runtime output (regenerated on install/build)
+node_modules/.prisma

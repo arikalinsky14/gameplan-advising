@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, TEAMS, type Team } from "@/content/teams";
+import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, type Team, type Sport } from "@/content/teams";
 
 type Step = "intro" | "basics" | "sport" | "team" | "confirm" | "home";
 
@@ -10,6 +10,7 @@ export default function IntakePage() {
   const [step, setStep] = useState<Step>("intro");
   const [basics, setBasics] = useState({ firstName: "", lastName: "", dob: "", state: "" });
   const [sport, setSport] = useState<string | null>(null);
+  const [sportId, setSportId] = useState<Sport | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
 
   const isMinor = isMinorFromDob(basics.dob);
@@ -35,17 +36,18 @@ export default function IntakePage() {
         {step === "sport" && (
           <Fade key="sport">
             <SportStep
-              onPick={(s) => {
-                setSport(s);
-                const isTier1 = TIER1_SPORTS.some((x) => x.label === s);
-                setStep(isTier1 ? "team" : "home");
+              onPick={(label, id) => {
+                setSport(label);
+                setSportId(id);
+                setStep(id ? "team" : "home");
               }}
             />
           </Fade>
         )}
-        {step === "team" && (
+        {step === "team" && sportId && (
           <Fade key="team">
             <TeamStep
+              sportId={sportId}
               onPick={(t) => setTeam(t)}
               onConfirm={() => setStep("confirm")}
               picked={team}
@@ -222,7 +224,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 /* -------- Step: Sport -------- */
-function SportStep({ onPick }: { onPick: (label: string) => void }) {
+function SportStep({ onPick }: { onPick: (label: string, id: Sport | null) => void }) {
   return (
     <section className="py-20 md:py-28">
       <div className="max-w-4xl mx-auto px-6">
@@ -240,7 +242,7 @@ function SportStep({ onPick }: { onPick: (label: string) => void }) {
             {TIER1_SPORTS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => onPick(s.label)}
+                onClick={() => onPick(s.label, s.id)}
                 className="text-left border border-line rounded-sm p-6 bg-paper hover:bg-mist/60 hover:border-accent transition"
               >
                 <div className="display text-2xl text-ink">{s.label}</div>
@@ -254,7 +256,7 @@ function SportStep({ onPick }: { onPick: (label: string) => void }) {
             {TIER2_SPORTS.map((s) => (
               <button
                 key={s}
-                onClick={() => onPick(s)}
+                onClick={() => onPick(s, null)}
                 className="rounded-full border border-line px-5 py-2 text-sm hover:bg-ink hover:text-paper transition"
               >
                 {s}
@@ -269,15 +271,17 @@ function SportStep({ onPick }: { onPick: (label: string) => void }) {
 
 /* -------- Step: Team -------- */
 function TeamStep({
+  sportId,
   onPick,
   onConfirm,
   picked,
 }: {
+  sportId: Sport;
   onPick: (t: Team) => void;
   onConfirm: () => void;
   picked: Team | null;
 }) {
-  const groups = teamsByConference();
+  const groups = teamsByConference(sportId);
   return (
     <section className="py-16 md:py-24">
       <div className="max-w-6xl mx-auto px-6">

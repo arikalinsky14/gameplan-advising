@@ -1,24 +1,89 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import ScrollReveal from "@/components/ScrollReveal";
-import { ROSTER, STATUS_LABEL, FLAG_LABEL, type IntakeStatus } from "@/content/roster";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { ROSTER as MOCK_ROSTER, STATUS_LABEL, FLAG_LABEL } from "@/content/roster";
 
-const statusTone: Record<IntakeStatus, string> = {
+type Row = {
+  id: string;
+  name: string;
+  sport: string;
+  school: string;
+  classYear: string;
+  isMinor: boolean;
+  status: "not-started" | "in-progress" | "plan-generated" | "synced-to-emoney";
+  flags: ("state-compliance" | "entity" | "insurance")[];
+  nilIncomeYtd: number;
+  homeState: string;
+  competingStates: string[];
+  lastActivity: string;
+  live: boolean;
+};
+
+const statusTone: Record<Row["status"], string> = {
   "not-started": "bg-mist text-slate",
   "in-progress": "bg-gold text-ink",
   "plan-generated": "bg-ink text-paper",
   "synced-to-emoney": "bg-accent text-paper",
 };
 
-function formatMoney(n: number) {
-  return "$" + n.toLocaleString();
+const STATUS_MAP: Record<string, Row["status"]> = {
+  NOT_STARTED: "not-started",
+  IN_PROGRESS: "in-progress",
+  PLAN_GENERATED: "plan-generated",
+  SYNCED_TO_EMONEY: "synced-to-emoney",
+};
+
+function formatMoney(n: number) { return "$" + n.toLocaleString(); }
+
+function relativeTime(d: Date) {
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86_400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86_400)}d ago`;
 }
 
-export default function AdvisorRosterPage() {
-  const total = ROSTER.length;
-  const inProgress = ROSTER.filter((r) => r.status === "in-progress").length;
-  const generated = ROSTER.filter((r) => r.status === "plan-generated").length;
-  const synced = ROSTER.filter((r) => r.status === "synced-to-emoney").length;
-  const flagged = ROSTER.filter((r) => r.flags.length > 0).length;
+async function loadRoster(): Promise<Row[]> {
+  try {
+    const athletes = await prisma.athlete.findMany({
+      orderBy: { updatedAt: "desc" },
+    });
+    if (athletes.length === 0) throw new Error("empty");
+    return athletes.map((a) => ({
+      id: a.id,
+      name: [a.firstName, a.lastName].filter(Boolean).join(" ") || "Unnamed athlete",
+      sport: a.sport ?? "—",
+      school: a.teamSchool ?? "—",
+      classYear: a.classYear ?? "—",
+      isMinor: a.isMinor,
+      status: STATUS_MAP[a.status] ?? "not-started",
+      flags: (a.flags as Row["flags"]) ?? [],
+      nilIncomeYtd: a.nilIncomeYtd,
+      homeState: a.homeState ?? "—",
+      competingStates: a.competingStates,
+      lastActivity: relativeTime(a.updatedAt),
+      live: true,
+    }));
+  } catch {
+    return MOCK_ROSTER.map((a) => ({ ...a, live: false }));
+  }
+}
+
+export default async function AdvisorRosterPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (session.role !== "ADVISOR") redirect("/intake");
+
+  const rows = await loadRoster();
+  const anyLive = rows.some((r) => r.live);
+
+  const total = rows.length;
+  const inProgress = rows.filter((r) => r.status === "in-progress").length;
+  const generated = rows.filter((r) => r.status === "plan-generated").length;
+  const synced = rows.filter((r) => r.status === "synced-to-emoney").length;
+  const flagged = rows.filter((r) => r.flags.length > 0).length;
 
   return (
     <section className="py-16 md:py-24">
@@ -63,7 +128,7 @@ export default function AdvisorRosterPage() {
               </tr>
             </thead>
             <tbody>
-              {ROSTER.map((a) => (
+              {rows.map((a) => (
                 <tr key={a.id} className="border-b border-line/60 hover:bg-mist/40 transition">
                   <Td>
                     <div className="text-ink font-medium">{a.name}</div>
@@ -122,7 +187,9 @@ export default function AdvisorRosterPage() {
         </div>
 
         <p className="mt-8 text-xs text-slate italic">
-          Placeholder roster. Real accounts populate once auth and Prisma are wired in Phase 1.
+          {anyLive
+            ? "Live roster from Postgres. Advisors can edit any field on any account."
+            : "Placeholder roster (DB empty or unreachable). Run npm run db:seed to populate."}
         </p>
       </div>
     </section>
@@ -137,7 +204,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
   return (
     <th className={`px-4 py-3 text-[11px] uppercase tracking-wider text-slate font-normal ${className}`}>
