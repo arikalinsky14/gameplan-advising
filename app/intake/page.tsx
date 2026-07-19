@@ -492,19 +492,19 @@ function ThemedHome({
             href="/intake/goals" primary={primary} />
           <HomeCard n="02" title="Contracts & payments"
             blurb="Drop in your NIL deals — we pull the numbers that matter."
-            href="#" primary={primary} disabled />
+            href="/intake/contracts" primary={primary} />
           <HomeCard n="03" title="Jock tax estimate"
             blurb="How your team travel affects what you owe, state by state."
             href="/tools/jock-tax" primary={primary} />
           <HomeCard n="04" title="Consolidated tax"
             blurb="All income, all deductions, one estimated liability."
             href="/tools/consolidated-tax" primary={primary} />
-          <HomeCard n="05" title="General wealth"
-            blurb="Investments, insurance, liabilities. Upload documents; we extract."
-            href="#" primary={primary} disabled />
-          <HomeCard n="06" title="Expense form"
+          <HomeCard n="05" title="Expense form"
             blurb="Standard and athlete-specific line items. Fill and submit."
-            href="#" primary={primary} disabled />
+            href="/intake/expenses" primary={primary} />
+          <HomeCard n="06" title="State rules"
+            blurb="The NIL rules for every state you play in. What to disclose, and where."
+            href="/tools/state-nil" primary={primary} />
         </div>
 
         <div className="mt-16 border-t border-line pt-8 flex flex-wrap items-center justify-between gap-4">
