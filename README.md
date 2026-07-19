@@ -52,20 +52,45 @@ Seeded logins:
 
 ## Deploying to Vercel
 
+The build script (`scripts/vercel-build.sh`) is written so the very first
+deploy on a fresh Vercel project will succeed even before you've attached a
+database — it uses a placeholder URL to let `prisma generate` run, skips
+`prisma db push`, and still builds. That gets you a live URL you can log
+into and iterate from. Auth and any DB-backed routes will error at runtime
+until you add `DATABASE_URL`, but the site loads.
+
+### First-time deploy
+
 1. Push this repo to GitHub, then import into Vercel.
-2. Add a Postgres database:
-   - Easiest: Vercel Postgres (Storage → Create → Postgres). It writes `DATABASE_URL` automatically.
-   - Alternative: [Neon](https://neon.tech) free tier — create a project, copy the connection string, paste into a Vercel `DATABASE_URL` env var.
-3. Add `AUTH_SECRET`:
+2. Deploy (the initial build will succeed and print
+   `vercel-build: skipping prisma db push`).
+3. Attach Postgres:
+   - **Easiest:** Vercel dashboard → Storage → Create → Postgres → link to
+     the project. Vercel writes `DATABASE_URL` automatically.
+   - **Alternative:** [Neon](https://neon.tech) free tier — create a
+     project, copy the connection string, and paste it into a Vercel
+     `DATABASE_URL` env var (Settings → Environment Variables → all
+     environments).
+4. Add `AUTH_SECRET`. Generate one with:
    ```
    node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
    ```
-   Paste that value into the `AUTH_SECRET` Vercel env var.
-4. Deploy. `vercel.json` runs `prisma generate && prisma db push` on every build so
-   schema changes land automatically.
-5. First deploy: run `npm run db:seed` locally (against the same `DATABASE_URL`) to
-   populate the demo advisor and roster. Or skip — new signups work fine on an
-   empty DB, and the advisor screen falls back to the mock roster.
+   Paste into a Vercel `AUTH_SECRET` env var (all environments).
+5. **Redeploy** (Deployments → ⋯ → Redeploy). This time the build sees a
+   real `DATABASE_URL`, runs `prisma db push`, and the schema lands in
+   Postgres.
+6. Seed demo data (optional). From your local machine, pointed at the same
+   `DATABASE_URL`:
+   ```
+   DATABASE_URL="..." npm run db:seed
+   ```
+   Or skip — new signups work fine on an empty DB, and the advisor screen
+   falls back to the mock roster until the DB has content.
+
+### On subsequent deploys
+
+`vercel-build.sh` runs `prisma generate && prisma db push` every time
+`DATABASE_URL` is set, so schema changes land automatically.
 
 ## Governance (don't ship without)
 
