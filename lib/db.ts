@@ -17,6 +17,6 @@ const PLACEHOLDER = "postgresql://placeholder:placeholder@localhost:5432/placeho
 // deploying without a DB shouldn't crash the site, it should show a friendly
 // "connect a database" state.
 export function isDbConfigured(): boolean {
-  const u = process.env.DATABASE_URL;
+  const u = process.env.POSTGRES_PRISMA_URL;
   return !!u && u !== PLACEHOLDER;
 }

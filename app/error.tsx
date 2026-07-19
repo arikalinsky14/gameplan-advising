@@ -15,7 +15,9 @@ export default function GlobalError({
   }, [error]);
 
   const looksLikeDb =
-    /DATABASE_URL|PrismaClientInitializationError|prisma/i.test(error.message ?? "");
+    /POSTGRES_(PRISMA_URL|URL_NON_POOLING)|DATABASE_URL|PrismaClientInitializationError|prisma/i.test(
+      error.message ?? "",
+    );
 
   return (
     <section className="min-h-[70vh] flex items-center">
@@ -28,11 +30,12 @@ export default function GlobalError({
         {looksLikeDb ? (
           <div className="mt-6 text-slate leading-relaxed space-y-4">
             <p>
-              This deployment is missing <code className="text-xs bg-mist px-1 rounded-sm">DATABASE_URL</code>{" "}
-              (or the value it has can&rsquo;t be reached).
+              This deployment is missing <code className="text-xs bg-mist px-1 rounded-sm">POSTGRES_PRISMA_URL</code>{" "}
+              /{" "}<code className="text-xs bg-mist px-1 rounded-sm">POSTGRES_URL_NON_POOLING</code>{" "}
+              (or the values it has can&rsquo;t be reached).
             </p>
             <ol className="list-decimal pl-5 space-y-1">
-              <li>Attach a Postgres database in Vercel → Storage, or paste a Neon connection string as <code className="text-xs bg-mist px-1 rounded-sm">DATABASE_URL</code>.</li>
+              <li>Attach the Neon integration in Vercel → Storage. It writes both variables for you.</li>
               <li>
                 Set <code className="text-xs bg-mist px-1 rounded-sm">AUTH_SECRET</code> to a random string.
               </li>

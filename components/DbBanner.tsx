@@ -10,7 +10,7 @@ export default function DbBanner() {
           No database connected. Signup / login / persistence disabled — see README §Deploying to Vercel.
         </span>
         <span className="text-[11px] text-paper/70 uppercase tracking-wider">
-          Set DATABASE_URL &amp; AUTH_SECRET in Vercel → Redeploy
+          Attach Neon in Vercel Storage &amp; set AUTH_SECRET → Redeploy
         </span>
       </div>
     </div>

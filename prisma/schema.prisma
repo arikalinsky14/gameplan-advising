@@ -9,8 +9,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection for runtime queries. On Vercel + Neon this is set by
+  // the Neon integration. Locally, set it in .env — or fall back to
+  // DATABASE_URL if that's what you already have.
+  url       = env("POSTGRES_PRISMA_URL")
+  // Direct (unpooled) connection for `prisma db push` and migrations. Neon
+  // integration sets this as POSTGRES_URL_NON_POOLING.
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 // A single login. Either an Advisor or a Client.
