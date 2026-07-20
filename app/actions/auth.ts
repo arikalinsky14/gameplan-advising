@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { prisma, isDbConfigured } from "@/lib/db";
 import {
   clearSessionCookie,
   createSessionCookie,
@@ -11,7 +11,12 @@ import {
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
 
+const NO_DB_ERROR =
+  "Database not configured yet. This deployment is missing DATABASE_URL — see README §Deploying to Vercel.";
+
 export async function signup(formData: FormData): Promise<AuthResult> {
+  if (!isDbConfigured()) return { ok: false, error: NO_DB_ERROR };
+
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "CLIENT");
@@ -22,46 +27,58 @@ export async function signup(formData: FormData): Promise<AuthResult> {
   if (role !== "CLIENT" && role !== "ADVISOR")
     return { ok: false, error: "Invalid role." };
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return { ok: false, error: "An account with that email already exists." };
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return { ok: false, error: "An account with that email already exists." };
 
-  const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      role,
-      displayName,
-      ...(role === "CLIENT"
-        ? {
-            athlete: {
-              create: {
-                firstName: displayName?.split(" ")[0] ?? "",
-                lastName: displayName?.split(" ").slice(1).join(" ") ?? "",
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        role,
+        displayName,
+        ...(role === "CLIENT"
+          ? {
+              athlete: {
+                create: {
+                  firstName: displayName?.split(" ")[0] ?? "",
+                  lastName: displayName?.split(" ").slice(1).join(" ") ?? "",
+                },
               },
-            },
-          }
-        : {}),
-    },
-  });
+            }
+          : {}),
+      },
+    });
 
-  await createSessionCookie({ userId: user.id, role: user.role });
-  return { ok: true };
+    await createSessionCookie({ userId: user.id, role: user.role });
+    return { ok: true };
+  } catch (e) {
+    console.error("signup error", e);
+    return { ok: false, error: "Could not create account. Database may be unavailable." };
+  }
 }
 
 export async function login(formData: FormData): Promise<AuthResult> {
+  if (!isDbConfigured()) return { ok: false, error: NO_DB_ERROR };
+
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { ok: false, error: "Email and password required." };
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return { ok: false, error: "Invalid credentials." };
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return { ok: false, error: "Invalid credentials." };
 
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) return { ok: false, error: "Invalid credentials." };
+    const ok = await verifyPassword(password, user.passwordHash);
+    if (!ok) return { ok: false, error: "Invalid credentials." };
 
-  await createSessionCookie({ userId: user.id, role: user.role });
-  return { ok: true };
+    await createSessionCookie({ userId: user.id, role: user.role });
+    return { ok: true };
+  } catch (e) {
+    console.error("login error", e);
+    return { ok: false, error: "Could not sign in. Database may be unavailable." };
+  }
 }
 
 export async function logout() {

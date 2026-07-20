@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import ScrollReveal from "@/components/ScrollReveal";
-import { prisma } from "@/lib/db";
+import { prisma, isDbConfigured } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROSTER as MOCK_ROSTER, STATUS_LABEL, FLAG_LABEL } from "@/content/roster";
 
@@ -29,6 +29,10 @@ const STATUS_MAP: Record<string, Athlete["status"]> = {
 };
 
 async function loadAthlete(id: string): Promise<Athlete | null> {
+  if (!isDbConfigured()) {
+    const m = MOCK_ROSTER.find((r) => r.id === id);
+    return m ? { ...m } : null;
+  }
   try {
     const a = await prisma.athlete.findUnique({ where: { id } });
     if (a) {
@@ -53,14 +57,18 @@ async function loadAthlete(id: string): Promise<Athlete | null> {
 }
 
 export default async function AthleteDetail({ params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (session.role !== "ADVISOR") redirect("/intake");
+  if (isDbConfigured()) {
+    const session = await getSession();
+    if (!session) redirect("/login");
+    if (session.role !== "ADVISOR") redirect("/intake");
+  }
 
   const athlete = await loadAthlete(params.id);
   if (!athlete) notFound();
 
-  const goalCount = await prisma.goal.count({ where: { athleteId: athlete.id } }).catch(() => 0);
+  const goalCount = isDbConfigured()
+    ? await prisma.goal.count({ where: { athleteId: athlete.id } }).catch(() => 0)
+    : 0;
 
   return (
     <section className="py-16 md:py-24">
@@ -131,21 +139,24 @@ export default async function AthleteDetail({ params }: { params: { id: string }
           <ToolCard eyebrow="Section 7 · A" title="Jock Tax Calculator"
             blurb="Duty-day allocation over the live schedule + current state rates. Home-state credit applied."
             href="/tools/jock-tax" cta="Open calculator" />
-          <ToolCard eyebrow="Section 7 · B" title="Contract & Payment Extraction"
-            blurb="Drag-drop NIL contracts. Structured deal record out — amount, schedule, exclusivity, non-cash comp, agent fee %."
-            href="#" cta="Coming in Phase 1 build" disabled />
+          <ToolCard eyebrow="Section 7 · B / H" title="Contracts & payments"
+            blurb="Enter each NIL deal — amount, schedule, exclusivity, non-cash comp, agent fee %. Gross vs. net-to-athlete rolls up automatically."
+            href="/intake/contracts" cta="Open contracts" />
           <ToolCard eyebrow="Section 7 · C" title="Consolidated Tax Calculator"
             blurb="Federal + SE + state reconciliation. Kiddie-tax check for minors. QBI when entity exists."
             href="/tools/consolidated-tax" cta="Open calculator" />
           <ToolCard eyebrow="Section 8" title={`Goals Module${goalCount ? ` · ${goalCount}` : ""}`}
             blurb="Short / medium / long-term goals. Maps 1:1 to eMoney expense records with isGoal: true."
             href="/intake/goals" cta="Open goals" />
-          <ToolCard eyebrow="Section 9-B" title="Expense Form"
-            blurb="Downloadable branded spreadsheet. Standard + athlete-specific line items. Upload back for extraction."
-            href="#" cta="Coming in Phase 1 build" disabled />
-          <ToolCard eyebrow="Section 10" title="Export to eMoney"
-            blurb="Structured Facts payload — Income, Expenses, Goals (isGoal: true), Assets/Liabilities, Advisor notes."
-            href="#" cta="Manual export CSV/JSON — pending API access" disabled />
+          <ToolCard eyebrow="Section 9 · B" title="Expense form"
+            blurb="Standard + athlete-specific line items. Autosaves per line. Deductible flag pre-marked for tax tool C."
+            href="/intake/expenses" cta="Open expense form" />
+          <ToolCard eyebrow="Section 7 · E" title="State NIL compliance"
+            blurb="Rule set for every state the athlete competes in. Disclosure, agent licensing, boosting restrictions."
+            href="/tools/state-nil" cta="Open compliance" />
+          <ToolCard eyebrow="Section 10" title="Export eMoney Facts"
+            blurb="Structured Facts payload — Income, Expenses, Goals (isGoal: true), Assets, Liabilities, advisor notes. JSON download."
+            href={`/api/export/emoney/${athlete.id}`} cta="Download JSON" />
         </div>
 
         <p className="mt-16 text-xs text-slate italic">

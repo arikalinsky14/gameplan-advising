@@ -33,11 +33,12 @@ Routes:
 
 ## Local development
 
-Prerequisites: Node 18+, a Postgres 15+ database (Docker, Neon, Supabase, or Vercel Postgres).
+Prerequisites: Node 18+, a Postgres 15+ database. Easiest is a free Neon project — copy both the pooled and direct connection strings.
 
 ```bash
 cp .env.example .env
-# edit .env with DATABASE_URL and AUTH_SECRET
+# edit .env: paste POSTGRES_PRISMA_URL (pooled), POSTGRES_URL_NON_POOLING
+# (direct), and generate an AUTH_SECRET
 
 npm install
 npx prisma db push       # creates the schema in your DB
@@ -52,20 +53,44 @@ Seeded logins:
 
 ## Deploying to Vercel
 
+The build script (`scripts/vercel-build.sh`) is written so the very first
+deploy on a fresh Vercel project will succeed even before you've attached a
+database — it uses a placeholder URL to let `prisma generate` run, skips
+`prisma db push`, and still builds. That gets you a live URL you can log
+into and iterate from. Auth and any DB-backed routes will error at runtime
+until you add `DATABASE_URL`, but the site loads.
+
+### First-time deploy
+
 1. Push this repo to GitHub, then import into Vercel.
-2. Add a Postgres database:
-   - Easiest: Vercel Postgres (Storage → Create → Postgres). It writes `DATABASE_URL` automatically.
-   - Alternative: [Neon](https://neon.tech) free tier — create a project, copy the connection string, paste into a Vercel `DATABASE_URL` env var.
-3. Add `AUTH_SECRET`:
+2. Deploy (the initial build will succeed and print
+   `vercel-build: skipping prisma db push`).
+3. Attach Postgres via the **Neon integration** (Vercel dashboard → Storage
+   → Create → Neon). The integration writes `POSTGRES_PRISMA_URL`,
+   `POSTGRES_URL_NON_POOLING`, and a handful of related vars into every
+   environment automatically. You don't need to rename or copy anything —
+   the Prisma schema is already wired to those exact variable names.
+4. Add `AUTH_SECRET`. Generate one with:
    ```
    node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
    ```
-   Paste that value into the `AUTH_SECRET` Vercel env var.
-4. Deploy. `vercel.json` runs `prisma generate && prisma db push` on every build so
-   schema changes land automatically.
-5. First deploy: run `npm run db:seed` locally (against the same `DATABASE_URL`) to
-   populate the demo advisor and roster. Or skip — new signups work fine on an
-   empty DB, and the advisor screen falls back to the mock roster.
+   Paste into a Vercel `AUTH_SECRET` env var (all environments).
+5. **Redeploy** (Deployments → ⋯ → Redeploy). This time the build sees a
+   real `DATABASE_URL`, runs `prisma db push`, and the schema lands in
+   Postgres.
+6. Seed demo data (optional). From your local machine, pointed at the same
+   Neon database:
+   ```
+   POSTGRES_PRISMA_URL="..." POSTGRES_URL_NON_POOLING="..." npm run db:seed
+   ```
+   Or skip — new signups work fine on an empty DB, and the advisor screen
+   falls back to the mock roster until the DB has content.
+
+### On subsequent deploys
+
+`vercel-build.sh` runs `prisma generate && prisma db push` every time
+`POSTGRES_PRISMA_URL` and `POSTGRES_URL_NON_POOLING` are set, so schema
+changes land automatically.
 
 ## Governance (don't ship without)
 

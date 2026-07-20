@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { prisma } from "./db";
+import { prisma, isDbConfigured } from "./db";
 
 const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET ??
@@ -61,11 +61,15 @@ export async function getSession(): Promise<SessionPayload | null> {
 
 export async function getSessionUser() {
   const s = await getSession();
-  if (!s) return null;
-  return prisma.user.findUnique({
-    where: { id: s.userId },
-    include: { athlete: true },
-  });
+  if (!s || !isDbConfigured()) return null;
+  try {
+    return await prisma.user.findUnique({
+      where: { id: s.userId },
+      include: { athlete: true },
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function requireAdvisor() {

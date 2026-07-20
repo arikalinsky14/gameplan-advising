@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, type Team, type Sport } from "@/content/teams";
+import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, TEAMS, type Team, type Sport } from "@/content/teams";
 
 type Step = "intro" | "basics" | "sport" | "team" | "confirm" | "home";
 
@@ -14,7 +14,6 @@ export default function IntakePage() {
   const [team, setTeam] = useState<Team | null>(null);
 
   const isMinor = isMinorFromDob(basics.dob);
-  const tier1 = TIER1_SPORTS.some((s) => s.label === sport);
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -66,7 +65,6 @@ export default function IntakePage() {
               basics={basics}
               sport={sport}
               isMinor={isMinor}
-              tier1={tier1}
             />
           </Fade>
         )}
@@ -225,44 +223,32 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /* -------- Step: Sport -------- */
 function SportStep({ onPick }: { onPick: (label: string, id: Sport | null) => void }) {
+  // One flat, uniform list — no tier language surfaced to the user.
+  const all: { label: string; id: Sport | null }[] = [
+    ...TIER1_SPORTS.map((s) => ({ label: s.label, id: s.id as Sport | null })),
+    ...TIER2_SPORTS.map((s) => ({ label: s, id: null as Sport | null })),
+  ];
+
   return (
     <section className="py-20 md:py-28">
       <div className="max-w-4xl mx-auto px-6">
         <div className="eyebrow">Step 02 · Sport</div>
         <h2 className="display text-4xl md:text-6xl mt-4 text-ink">Which one&rsquo;s yours?</h2>
         <p className="mt-4 text-slate max-w-xl">
-          Football, men&rsquo;s basketball, and women&rsquo;s basketball unlock team
-          selection and a personalized home. Other sports keep the same intake and NIL
-          tools without the team-themed front end.
+          Pick the sport you compete in. This tells us which state travel to expect and
+          shapes the rest of your intake.
         </p>
 
-        <div className="mt-10">
-          <div className="eyebrow">Tier 1 — fully personalized</div>
-          <div className="mt-3 grid sm:grid-cols-3 gap-3">
-            {TIER1_SPORTS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => onPick(s.label, s.id)}
-                className="text-left border border-line rounded-sm p-6 bg-paper hover:bg-mist/60 hover:border-accent transition"
-              >
-                <div className="display text-2xl text-ink">{s.label}</div>
-                <div className="mt-2 text-xs text-slate">Team + schedule</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="eyebrow mt-10">Tier 2 — same tools, generic front end</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {TIER2_SPORTS.map((s) => (
-              <button
-                key={s}
-                onClick={() => onPick(s, null)}
-                className="rounded-full border border-line px-5 py-2 text-sm hover:bg-ink hover:text-paper transition"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {all.map((s) => (
+            <button
+              key={s.label}
+              onClick={() => onPick(s.label, s.id)}
+              className="text-left border border-line rounded-sm p-5 bg-paper hover:bg-mist/60 hover:border-accent transition"
+            >
+              <div className="display text-xl text-ink">{s.label}</div>
+            </button>
+          ))}
         </div>
       </div>
     </section>
@@ -281,73 +267,119 @@ function TeamStep({
   onConfirm: () => void;
   picked: Team | null;
 }) {
-  const groups = teamsByConference(sportId);
+  const [query, setQuery] = useState("");
+
+  const allForSport = useMemo(
+    () =>
+      TEAMS.filter((t) => t.sports.includes(sportId))
+        .slice()
+        .sort((a, b) => a.school.localeCompare(b.school)),
+    [sportId],
+  );
+
+  const q = query.trim().toLowerCase();
+  const results = useMemo(
+    () =>
+      q.length === 0
+        ? allForSport
+        : allForSport.filter(
+            (t) =>
+              t.school.toLowerCase().includes(q) ||
+              t.mascot.toLowerCase().includes(q) ||
+              t.city.toLowerCase().includes(q) ||
+              t.state.toLowerCase().includes(q),
+          ),
+    [allForSport, q],
+  );
+
   return (
     <section className="py-16 md:py-24">
       <div className="max-w-6xl mx-auto px-6">
         <div className="eyebrow">Step 03 · Team</div>
         <h2 className="display text-4xl md:text-6xl mt-4 text-ink">Find your school.</h2>
         <p className="mt-4 text-slate max-w-2xl">
-          Grouped the way you already think about your sport — by conference. Pick your
-          school, then confirm. Confirming this is what unlocks your personalized home,
-          your schedule, and your jock-tax tool.
+          Type your school name and pick it from the list. Confirming this is what
+          unlocks your personalized home, your schedule, and your jock-tax tool.
         </p>
 
-        <div className="mt-10 grid md:grid-cols-2 gap-x-10 gap-y-12">
-          {groups.map(({ conference, teams }) => (
-            <div key={conference}>
-              <div className="eyebrow">{conference}</div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {teams.map((t) => {
-                  const active = picked?.id === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => onPick(t)}
-                      className={`text-left border rounded-sm p-4 transition ${
-                        active
-                          ? "border-accent bg-mist"
-                          : "border-line bg-paper hover:border-accent/60 hover:bg-mist/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <TeamBadge team={t} size={28} />
-                        <div>
-                          <div className="text-sm text-ink font-medium leading-tight">
-                            {t.school}
-                          </div>
-                          <div className="text-[11px] text-slate mt-0.5">{t.mascot}</div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        <div className="mt-8 relative">
+          <input
+            type="search"
+            autoFocus
+            placeholder="Search by school, mascot, city, or state"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full border-b-2 border-ink/30 bg-transparent py-4 pl-1 pr-10 text-lg outline-none focus:border-accent transition placeholder:text-slate/60"
+          />
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 text-slate/50 text-sm">
+            {results.length} {results.length === 1 ? "school" : "schools"}
+          </div>
         </div>
 
-        <div className="mt-16 border-t border-line pt-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-8 grid sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto pr-1">
+          {results.map((t) => {
+            const active = picked?.id === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onPick(t)}
+                className={`text-left border rounded-sm p-4 transition ${
+                  active
+                    ? "border-accent bg-mist"
+                    : "border-line bg-paper hover:border-accent/60 hover:bg-mist/40"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <TeamBadge team={t} size={32} />
+                  <div className="min-w-0">
+                    <div className="text-sm text-ink font-medium leading-tight truncate">
+                      {t.school}
+                    </div>
+                    <div className="text-[11px] text-slate mt-0.5 truncate">
+                      {t.mascot} · {t.city}, {t.state}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+          {results.length === 0 && (
+            <div className="col-span-full text-sm text-slate italic py-6">
+              No matches. Try a different spelling, or enter manually below.
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 border-t border-line pt-8 flex flex-wrap items-center justify-between gap-4">
           <div className="text-sm text-slate">
-            Can&rsquo;t find your team? {" "}
+            Don&rsquo;t see your school?{" "}
             <button
-              onClick={() => onPick({
-                id: "manual", school: "Manual entry", mascot: "—", city: "—",
-                state: "", conference: "Other", division: "D1",
-                primary: "#8C7758", accent: "#1D2532", serif: true,
-              } as Team)}
+              onClick={() =>
+                onPick({
+                  id: "manual",
+                  school: query.trim() || "Manual entry",
+                  mascot: "—",
+                  city: "—",
+                  state: "",
+                  conference: "Other",
+                  division: "D1",
+                  primary: "#8C7758",
+                  accent: "#1D2532",
+                  serif: true,
+                  sports: [sportId],
+                } as Team)
+              }
               className="text-accent underline underline-offset-4 hover:text-ink"
             >
-              Enter manually
+              Enter it manually
             </button>
-            <span className="italic ml-1">(we&rsquo;ll flag it for verification)</span>
           </div>
           <button
             disabled={!picked}
             onClick={onConfirm}
             className="rounded-full bg-ink text-paper px-8 py-3 text-sm hover:bg-accent transition disabled:bg-mist disabled:text-slate disabled:cursor-not-allowed"
           >
-            {picked ? `Confirm ${picked.school} →` : "Pick a team to continue"}
+            {picked ? `Confirm ${picked.school} →` : "Pick a school to continue"}
           </button>
         </div>
       </div>
@@ -424,13 +456,11 @@ function ThemedHome({
   basics,
   sport,
   isMinor,
-  tier1,
 }: {
   team: Team | null;
   basics: { firstName: string; lastName: string; dob: string; state: string };
   sport: string | null;
   isMinor: boolean;
-  tier1: boolean;
 }) {
   const primary = team?.primary ?? "#8C7758";
   const accent = team?.accent ?? "#1D2532";
@@ -442,7 +472,7 @@ function ThemedHome({
           background: `linear-gradient(135deg, ${primary}18 0%, ${primary}05 55%, transparent 100%)`,
           borderLeft: `4px solid ${primary}`,
         }}>
-          <div className="eyebrow" style={{ color: primary }}>Your home · {team?.conference ?? "Generic"}</div>
+          <div className="eyebrow" style={{ color: primary }}>Your home</div>
           <h1
             className="display text-5xl md:text-8xl mt-4 text-ink"
             style={{ fontFamily: team?.serif ? "var(--font-display)" : "var(--font-sans)" }}
@@ -451,68 +481,37 @@ function ThemedHome({
             <span style={{ color: accent }}>.</span>
           </h1>
           <p className="mt-6 text-lg text-slate max-w-xl">
-            {team?.school ?? "Generic sport track"} · {sport ?? "—"}
+            {team?.school ? `${team.school} · ` : ""}{sport ?? "—"}
             {isMinor ? " · Minor · UTMA structure" : ""}
           </p>
         </div>
 
         <div className="mt-12 grid md:grid-cols-3 gap-6">
-          <HomeCard
-            n="01"
-            title="Goals"
+          <HomeCard n="01" title="Goals"
             blurb="Short / medium / long-term. How high you expect to go."
-            href="/intake/goals"
-            primary={primary}
-          />
-          <HomeCard
-            n="02"
-            title="Contracts & payments"
+            href="/intake/goals" primary={primary} />
+          <HomeCard n="02" title="Contracts & payments"
             blurb="Drop in your NIL deals — we pull the numbers that matter."
-            href="#"
-            primary={primary}
-            disabled
-          />
-          <HomeCard
-            n="03"
-            title="Jock tax estimate"
+            href="/intake/contracts" primary={primary} />
+          <HomeCard n="03" title="Jock tax estimate"
             blurb="How your team travel affects what you owe, state by state."
-            href="/tools/jock-tax"
-            primary={primary}
-          />
-          <HomeCard
-            n="04"
-            title="Consolidated tax"
+            href="/tools/jock-tax" primary={primary} />
+          <HomeCard n="04" title="Consolidated tax"
             blurb="All income, all deductions, one estimated liability."
-            href="#"
-            primary={primary}
-            disabled
-          />
-          <HomeCard
-            n="05"
-            title="General wealth"
-            blurb="Investments, insurance, liabilities. Upload documents; we extract."
-            href="#"
-            primary={primary}
-            disabled
-          />
-          <HomeCard
-            n="06"
-            title="Expense form"
-            blurb={tier1 ? "Athlete-specific + standard line items. Fill and upload back." : "Standard + athlete-specific line items. Fill and upload back."}
-            href="#"
-            primary={primary}
-            disabled
-          />
+            href="/tools/consolidated-tax" primary={primary} />
+          <HomeCard n="05" title="Expense form"
+            blurb="Standard and athlete-specific line items. Fill and submit."
+            href="/intake/expenses" primary={primary} />
+          <HomeCard n="06" title="State rules"
+            blurb="The NIL rules for every state you play in. What to disclose, and where."
+            href="/tools/state-nil" primary={primary} />
         </div>
 
         <div className="mt-16 border-t border-line pt-8 flex flex-wrap items-center justify-between gap-4">
           <p className="text-xs text-slate italic max-w-lg">
-            Advisor view is a separate screen — everything you enter here is visible to
-            the advisor on your account, and they can edit any field alongside you.
+            Anything you enter here is visible to your advisor, and either of you can
+            edit any field.
           </p>
-          <Link href="/advisor" className="text-sm text-accent hover:text-ink">
-            Switch to advisor view →
-          </Link>
         </div>
       </div>
     </section>
@@ -530,7 +529,7 @@ function HomeCard({ n, title, blurb, href, primary, disabled }: {
       <h3 className="display text-2xl mt-3 text-ink">{title}</h3>
       <p className="mt-3 text-slate text-sm leading-relaxed">{blurb}</p>
       <div className="mt-6 text-xs text-slate">
-        {disabled ? "Phase 1 build in progress" : "Open →"}
+        {disabled ? "Coming soon" : "Open →"}
       </div>
     </div>
   );
