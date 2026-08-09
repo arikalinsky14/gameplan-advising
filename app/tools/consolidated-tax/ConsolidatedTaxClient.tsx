@@ -11,6 +11,7 @@ import {
   sourceContract, summarizeSourcing, netOf,
   type ContractForSourcing,
 } from "@/content/nil-sourcing";
+import BackToHomeClient from "@/components/BackToHomeClient";
 
 const STANDARD_DEDUCTION_2024 = 14_600;
 const QBI_RATE = 0.20;
@@ -354,10 +355,7 @@ export default function ConsolidatedTaxClient({
           <em>docs/TAX-CALCULATOR-ACCURACY-GUIDE.md</em> for the full open-item list.
         </p>
 
-        <div className="mt-16 border-t border-line pt-8 flex flex-wrap justify-between gap-4">
-          <Link href="/intake/contracts" className="text-sm text-slate hover:text-accent">← Contracts</Link>
-          <Link href="/advisor" className="text-sm text-slate hover:text-accent">Advisor roster →</Link>
-        </div>
+        <BackToHomeClient />
       </div>
     </section>
   );

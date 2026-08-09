@@ -180,8 +180,14 @@ model WorkLogEntry {
 
   date       DateTime
   state      String   // 2-letter
+  city       String?  // free-text, e.g. "Portland" for a shoot day
   hours      Float    @default(1)
   note       String?
+  // Proof of completion — Vercel Blob URL (photo, receipt PDF, invoice, etc).
+  // Uploaded via /api/upload; stored as the public blob URL. Nullable so
+  // legacy entries and quick logs without a file are still valid.
+  proofUrl   String?
+  proofName  String?  // original filename, for display
 
   createdAt  DateTime @default(now())
 }

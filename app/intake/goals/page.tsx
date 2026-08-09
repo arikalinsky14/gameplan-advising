@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { listGoals } from "@/app/actions/goals";
+import BackToHome from "@/components/BackToHome";
 import GoalsClient from "./GoalsClient";
 
 export default async function GoalsPage() {
@@ -41,15 +42,12 @@ export default async function GoalsPage() {
           }))} />
         )}
 
-        <div className="mt-16 border-t border-line pt-8 flex flex-wrap justify-between gap-4">
-          <Link href="/intake" className="text-sm text-slate hover:text-accent">
-            ← Back to intake
-          </Link>
-          <div className="text-xs text-slate italic">
-            Persists to Postgres. Exports as eMoney expense records with{" "}
-            <code className="text-[11px] bg-mist px-1 rounded-sm">isGoal: true</code>.
-          </div>
+        <div className="mt-16 border-t border-line pt-8 text-xs text-slate italic text-center">
+          Persists to Postgres. Exports as eMoney expense records with{" "}
+          <code className="text-[11px] bg-mist px-1 rounded-sm">isGoal: true</code>.
         </div>
+
+        <BackToHome />
       </div>
     </section>
   );

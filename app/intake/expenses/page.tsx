@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { listExpenses } from "@/app/actions/expenses";
+import BackToHome from "@/components/BackToHome";
 import ExpensesClient from "./ExpensesClient";
 
 export default async function ExpensesPage() {
@@ -39,6 +40,8 @@ export default async function ExpensesPage() {
         ) : (
           <ExpensesClient initial={initial} />
         )}
+
+        <BackToHome />
       </div>
     </section>
   );

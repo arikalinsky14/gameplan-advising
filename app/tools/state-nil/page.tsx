@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { NIL_RULES, nilRuleFor, type NilRule } from "@/content/nil-compliance";
+import BackToHomeClient from "@/components/BackToHomeClient";
 
 export default function StateNilPage() {
   const stateCodes = useMemo(() => Object.keys(NIL_RULES).sort(), []);
@@ -67,10 +68,7 @@ export default function StateNilPage() {
           </div>
         </div>
 
-        <div className="mt-16 border-t border-line pt-8 flex flex-wrap justify-between gap-4">
-          <Link href="/tools/jock-tax" className="text-sm text-slate hover:text-accent">← Jock tax</Link>
-          <Link href="/advisor" className="text-sm text-slate hover:text-accent">Advisor roster →</Link>
-        </div>
+        <BackToHomeClient />
       </div>
     </section>
   );

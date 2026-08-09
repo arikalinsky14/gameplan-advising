@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { listContracts } from "@/app/actions/contracts";
 import { prisma, isDbConfigured } from "@/lib/db";
+import BackToHome from "@/components/BackToHome";
 import ContractsClient from "./ContractsClient";
 
 async function homeStateForCurrentUser(): Promise<string | null> {
@@ -71,17 +72,22 @@ export default async function ContractsPage() {
                 contractId: w.contractId,
                 date: w.date.toISOString().slice(0, 10),
                 state: w.state,
+                city: w.city,
                 hours: w.hours,
                 note: w.note,
+                proofUrl: w.proofUrl,
+                proofName: w.proofName,
               })),
             }))}
           />
         )}
 
-        <div className="mt-16 border-t border-line pt-8 text-xs text-slate italic">
+        <div className="mt-16 border-t border-line pt-8 text-xs text-slate italic text-center">
           Upload-based extraction (drag-drop the PDF, we pull the numbers)
           drops in later once the LLM vendor decision lands.
         </div>
+
+        <BackToHome />
       </div>
     </section>
   );
