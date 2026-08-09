@@ -127,6 +127,14 @@ enum GoalBucket {
 }
 
 // Contract & Payment extraction (Section 7-B / 7-H).
+//
+// NIL income sourcing note (see docs/TAX-CALCULATOR-ACCURACY-GUIDE.md §2/§3):
+// NIL contracts are payment for name/image/likeness work, not for athletic
+// performance. State income tax is therefore sourced to WHERE the work was
+// performed — not to the team's game schedule. Short one-off deals typically
+// have a single `workState`. Long-term deals (e.g. a season-long Nike
+// campaign) get a WorkLogEntry per session so income allocates across every
+// state the athlete actually worked in, in proportion to time spent.
 model Contract {
   id             String   @id @default(cuid())
   athleteId      String
@@ -142,11 +150,40 @@ model Contract {
   exclusivity    String?
   deliverables   String?
 
+  // Simple one-off case: the whole deal was performed in one state. Left
+  // null and unconfirmed by default so the sourcing function surfaces it
+  // for advisor review rather than silently defaulting to home state.
+  workState          String?
+  workStateConfirmed Boolean @default(false)
+
+  // Long-term case: a contemporaneous work log. When any entries exist,
+  // the sourcing function uses them (state-day proportional split) instead
+  // of the single workState field above.
+  workLog        WorkLogEntry[]
+
   // Vault mirror — the original PDF stays alongside the extracted numbers.
   vaultDocumentUrl String?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// Contemporaneous work-log entry attached to a Contract. Each entry answers
+// "on this date, in this state, how many hours did the athlete work on this
+// deal." Hours-weighted so a full production day counts more than a 20-minute
+// social post. The sourcing function converts entry hours per state into a
+// fraction of the deal's net income allocated to that state.
+model WorkLogEntry {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  date       DateTime
+  state      String   // 2-letter
+  hours      Float    @default(1)
+  note       String?
+
+  createdAt  DateTime @default(now())
 }
 
 // Expense form line items — feeds the deductible-expense side of tool C.

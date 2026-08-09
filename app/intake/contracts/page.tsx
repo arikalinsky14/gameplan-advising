@@ -1,24 +1,44 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { listContracts } from "@/app/actions/contracts";
+import { prisma, isDbConfigured } from "@/lib/db";
 import ContractsClient from "./ContractsClient";
+
+async function homeStateForCurrentUser(): Promise<string | null> {
+  if (!isDbConfigured()) return null;
+  const s = await getSession();
+  if (!s) return null;
+  try {
+    const u = await prisma.user.findUnique({
+      where: { id: s.userId },
+      include: { athlete: true },
+    });
+    return u?.athlete?.homeState ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ContractsPage() {
   const session = await getSession();
   const contracts = session ? await listContracts() : [];
+  const homeState = session ? await homeStateForCurrentUser() : null;
 
   return (
     <section className="py-16 md:py-24">
-      <div className="max-w-5xl mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-6">
         <div className="eyebrow">Section 07 · B / H</div>
         <h1 className="display text-4xl md:text-6xl mt-4 text-ink">
           Contracts &amp; payments.
         </h1>
         <p className="mt-6 text-slate max-w-2xl leading-relaxed">
-          Every NIL deal — cash, non-cash (product, vehicle use), or a mix. Enter
-          the terms once; the tool tracks gross, agent / rep fee, and the net that
-          actually reaches you. Non-cash comp is counted at fair market value so it
-          flows into the tax estimator the same way as cash.
+          Every NIL deal — cash, non-cash (product, vehicle use), or a mix. This
+          section is your <em className="text-ink not-italic">bookkeeping record</em>:
+          the raw data that decides how state and out-of-state income tax gets
+          allocated. Short one-off deals just need a work state. Long-term deals
+          (e.g. a season-long Nike campaign) get a contemporaneous work log — one
+          entry per shoot, appearance, or content day — and the tool splits the
+          net across every state you actually worked in.
         </p>
 
         {!session ? (
@@ -32,6 +52,7 @@ export default async function ContractsPage() {
           </div>
         ) : (
           <ContractsClient
+            homeState={homeState}
             initial={contracts.map((c) => ({
               id: c.id,
               brand: c.brand,
@@ -43,14 +64,23 @@ export default async function ContractsPage() {
               termEnd: c.termEnd ? c.termEnd.toISOString().slice(0, 10) : null,
               exclusivity: c.exclusivity,
               deliverables: c.deliverables,
+              workState: c.workState,
+              workStateConfirmed: c.workStateConfirmed,
+              workLog: c.workLog.map((w) => ({
+                id: w.id,
+                contractId: w.contractId,
+                date: w.date.toISOString().slice(0, 10),
+                state: w.state,
+                hours: w.hours,
+                note: w.note,
+              })),
             }))}
           />
         )}
 
         <div className="mt-16 border-t border-line pt-8 text-xs text-slate italic">
-          Upload-based extraction (drag-drop the PDF, we pull the numbers) is on
-          the roadmap. For now this is a manual entry form — same fields, same
-          data, no waiting on the LLM vendor decision.
+          Upload-based extraction (drag-drop the PDF, we pull the numbers)
+          drops in later once the LLM vendor decision lands.
         </div>
       </div>
     </section>

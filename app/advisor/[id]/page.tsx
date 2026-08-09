@@ -136,9 +136,9 @@ export default async function AthleteDetail({ params }: { params: { id: string }
         </div>
 
         <div className="mt-16 grid md:grid-cols-2 gap-6">
-          <ToolCard eyebrow="Section 7 · A" title="Jock Tax Calculator"
-            blurb="Duty-day allocation over the live schedule + current state rates. Home-state credit applied."
-            href="/tools/jock-tax" cta="Open calculator" />
+          <ToolCard eyebrow="Section 7 · A" title="Jock Tax (revenue-share only)"
+            blurb="Duty-day allocation. NIL income does NOT source through here — see docs/TAX-CALCULATOR-ACCURACY-GUIDE §6. Retained for House-settlement revenue-share income pending scope decision."
+            href="/tools/jock-tax" cta="Open (advisor-only)" />
           <ToolCard eyebrow="Section 7 · B / H" title="Contracts & payments"
             blurb="Enter each NIL deal — amount, schedule, exclusivity, non-cash comp, agent fee %. Gross vs. net-to-athlete rolls up automatically."
             href="/intake/contracts" cta="Open contracts" />
