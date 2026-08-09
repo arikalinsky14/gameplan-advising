@@ -18,8 +18,11 @@ type WorkLogEntry = {
   contractId: string;
   date: string;
   state: string;
+  city: string | null;
   hours: number;
   note: string | null;
+  proofUrl: string | null;
+  proofName: string | null;
 };
 
 type Contract = {
@@ -369,9 +372,10 @@ function ContractCard({
                 <thead>
                   <tr className="text-left text-[10px] uppercase tracking-wider text-slate">
                     <th className="py-2 pr-4">Date</th>
-                    <th className="py-2 pr-4">State</th>
+                    <th className="py-2 pr-4">Location</th>
                     <th className="py-2 pr-4 text-right">Hours</th>
                     <th className="py-2 pr-4">Note</th>
+                    <th className="py-2 pr-4">Proof</th>
                     <th />
                   </tr>
                 </thead>
@@ -379,9 +383,26 @@ function ContractCard({
                   {c.workLog.map((e) => (
                     <tr key={e.id} className="border-t border-line/60">
                       <td className="py-2 pr-4 tabular-nums">{e.date}</td>
-                      <td className="py-2 pr-4">{e.state}</td>
+                      <td className="py-2 pr-4">
+                        {e.city ? `${e.city}, ` : ""}{e.state}
+                      </td>
                       <td className="py-2 pr-4 text-right tabular-nums">{e.hours}</td>
                       <td className="py-2 pr-4 text-slate">{e.note ?? "—"}</td>
+                      <td className="py-2 pr-4">
+                        {e.proofUrl ? (
+                          <a
+                            href={e.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent underline underline-offset-4 text-xs"
+                            title={e.proofName ?? "proof"}
+                          >
+                            view →
+                          </a>
+                        ) : (
+                          <span className="text-slate/60 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4 text-right">
                         <button
                           onClick={() => {
@@ -459,10 +480,33 @@ function NewWorkLogEntry({
 }) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [proof, setProof] = useState<{ url: string; name: string } | null>(null);
+
+  const handleFile = async (file: File | undefined | null) => {
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Upload failed");
+        return;
+      }
+      setProof({ url: data.url, name: data.name });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <form
-      className="mt-4 border border-line rounded-sm p-4 bg-mist/40 grid grid-cols-2 md:grid-cols-5 gap-3 items-end"
+      className="mt-4 border border-line rounded-sm p-5 bg-mist/40 space-y-4"
       action={(fd) =>
         startTransition(async () => {
           setError(null);
@@ -470,8 +514,11 @@ function NewWorkLogEntry({
             contractId,
             date: String(fd.get("date") ?? ""),
             state: String(fd.get("state") ?? ""),
+            city: String(fd.get("city") ?? "") || null,
             hours: Number(fd.get("hours") ?? 1),
             note: String(fd.get("note") ?? "") || null,
+            proofUrl: proof?.url ?? null,
+            proofName: proof?.name ?? null,
           };
           if (!input.date || !input.state) {
             setError("Date and state required");
@@ -487,39 +534,90 @@ function NewWorkLogEntry({
             contractId,
             date: res.entry.date.toISOString().slice(0, 10),
             state: res.entry.state,
+            city: res.entry.city,
             hours: res.entry.hours,
             note: res.entry.note,
+            proofUrl: res.entry.proofUrl,
+            proofName: res.entry.proofName,
           });
         })
       }
     >
+      <div className="eyebrow">Log a work session</div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <label className="block col-span-1">
+          <span className="field-label block mb-1">Date *</span>
+          <input name="date" type="date" required className="input" />
+        </label>
+        <label className="block col-span-1">
+          <span className="field-label block mb-1">State *</span>
+          <select name="state" required className="input">
+            <option value="">—</option>
+            {STATE_LIST.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block col-span-2">
+          <span className="field-label block mb-1">City</span>
+          <input name="city" className="input" placeholder="e.g. Portland" />
+        </label>
+        <label className="block col-span-1">
+          <span className="field-label block mb-1">Hours</span>
+          <input name="hours" type="number" step={0.5} min={0.5} defaultValue={1} className="input tabular-nums" />
+        </label>
+      </div>
+
       <label className="block">
-        <span className="field-label block mb-1">Date</span>
-        <input name="date" type="date" required className="input" />
+        <span className="field-label block mb-1">What happened</span>
+        <input
+          name="note"
+          className="input"
+          placeholder="e.g. Photo shoot for holiday campaign — Nike HQ campus"
+        />
       </label>
-      <label className="block">
-        <span className="field-label block mb-1">State</span>
-        <select name="state" required className="input">
-          <option value="">—</option>
-          {STATE_LIST.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="field-label block mb-1">Hours</span>
-        <input name="hours" type="number" step={0.5} min={0.5} defaultValue={1} className="input tabular-nums" />
-      </label>
-      <label className="block col-span-2">
-        <span className="field-label block mb-1">Note (optional)</span>
-        <input name="note" className="input" placeholder="e.g. Studio shoot" />
-      </label>
-      <div className="col-span-2 md:col-span-5 flex items-center justify-end gap-3 pt-2">
+
+      <div>
+        <span className="field-label block mb-2">Proof of completion (optional)</span>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+            disabled={uploading}
+            className="text-xs file:mr-3 file:rounded-sm file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-xs file:text-ink file:hover:bg-mist"
+          />
+          {uploading && <span className="text-xs text-slate">uploading…</span>}
+          {proof && (
+            <span className="text-xs text-accent">
+              ✓ {proof.name} attached ·{" "}
+              <button
+                type="button"
+                onClick={() => setProof(null)}
+                className="text-slate hover:text-accent underline underline-offset-2"
+              >
+                remove
+              </button>
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-slate mt-2">
+          Photo of the shoot, invoice, screenshot of the deliverable — anything that
+          proves the work happened. Up to 10 MB. Files are stored securely and only
+          visible to you and your advisor.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 pt-2">
         {error && <div className="text-xs text-accent">{error}</div>}
         <button type="button" onClick={onCancel} className="text-xs text-slate hover:text-accent">
           Cancel
         </button>
-        <button className="rounded-full bg-ink text-paper px-4 py-2 text-xs hover:bg-accent transition">
+        <button
+          disabled={uploading}
+          className="rounded-full bg-ink text-paper px-4 py-2 text-xs hover:bg-accent transition disabled:opacity-60"
+        >
           Log session →
         </button>
       </div>

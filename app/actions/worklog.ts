@@ -23,8 +23,11 @@ export async function addWorkLogEntry(input: {
   contractId: string;
   date: string;
   state: string;
+  city?: string | null;
   hours: number;
   note?: string | null;
+  proofUrl?: string | null;
+  proofName?: string | null;
 }) {
   if (!isDbConfigured()) return NO_DB;
   const guard = await assertContractAccess(input.contractId);
@@ -36,8 +39,11 @@ export async function addWorkLogEntry(input: {
         contractId: input.contractId,
         date: new Date(input.date),
         state: input.state.toUpperCase(),
+        city: input.city?.trim() || null,
         hours: Number.isFinite(input.hours) && input.hours > 0 ? input.hours : 1,
         note: input.note ?? null,
+        proofUrl: input.proofUrl ?? null,
+        proofName: input.proofName ?? null,
       },
     });
     revalidatePath("/intake/contracts");
