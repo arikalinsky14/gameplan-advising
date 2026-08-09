@@ -27,8 +27,6 @@ export default async function Nav() {
           {session?.role === "CLIENT" && (
             <Link href="/intake" className="hover:text-accent">My intake</Link>
           )}
-          <Link href="/tools/jock-tax" className="hover:text-accent">Jock tax</Link>
-          <Link href="/tools/consolidated-tax" className="hover:text-accent hidden md:inline">Consolidated tax</Link>
 
           {session ? (
             <form action={logout}>
