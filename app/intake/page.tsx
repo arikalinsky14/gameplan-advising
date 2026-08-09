@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, TEAMS, type Team, type Sport } from "@/content/teams";
@@ -9,12 +9,75 @@ import ScheduleStrip from "@/components/ScheduleStrip";
 
 type Step = "intro" | "basics" | "sport" | "team" | "confirm" | "home";
 
+// Everything a user has typed / picked in the intake flow. Persisted to
+// sessionStorage so back-navigation and refresh don't drop the state.
+type IntakeDraft = {
+  step: Step;
+  basics: { firstName: string; lastName: string; dob: string; state: string };
+  sport: string | null;
+  sportId: Sport | null;
+  team: Team | null;
+};
+
+const DRAFT_KEY = "gpa.intake.draft.v1";
+const EMPTY: IntakeDraft = {
+  step: "intro",
+  basics: { firstName: "", lastName: "", dob: "", state: "" },
+  sport: null,
+  sportId: null,
+  team: null,
+};
+
 export default function IntakePage() {
-  const [step, setStep] = useState<Step>("intro");
-  const [basics, setBasics] = useState({ firstName: "", lastName: "", dob: "", state: "" });
-  const [sport, setSport] = useState<string | null>(null);
-  const [sportId, setSportId] = useState<Sport | null>(null);
-  const [team, setTeam] = useState<Team | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [step, setStepRaw] = useState<Step>(EMPTY.step);
+  const [basics, setBasicsRaw] = useState(EMPTY.basics);
+  const [sport, setSportRaw] = useState<string | null>(EMPTY.sport);
+  const [sportId, setSportIdRaw] = useState<Sport | null>(EMPTY.sportId);
+  const [team, setTeamRaw] = useState<Team | null>(EMPTY.team);
+
+  // Rehydrate on first client render — before that, we render the intro
+  // step so SSR + first paint match.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Partial<IntakeDraft>;
+        if (d.step)    setStepRaw(d.step);
+        if (d.basics)  setBasicsRaw({ ...EMPTY.basics, ...d.basics });
+        if (d.sport)   setSportRaw(d.sport);
+        if (d.sportId) setSportIdRaw(d.sportId);
+        if (d.team)    setTeamRaw(d.team);
+      }
+    } catch { /* ignore */ }
+    setHydrated(true);
+  }, []);
+
+  // Persist on every meaningful change.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ step, basics, sport, sportId, team }),
+      );
+    } catch { /* ignore */ }
+  }, [hydrated, step, basics, sport, sportId, team]);
+
+  const setStep = (s: Step) => setStepRaw(s);
+  const setBasics = (b: IntakeDraft["basics"]) => setBasicsRaw(b);
+  const setSport = (s: string | null) => setSportRaw(s);
+  const setSportId = (s: Sport | null) => setSportIdRaw(s);
+  const setTeam = (t: Team | null) => setTeamRaw(t);
+
+  const clearDraft = () => {
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setStepRaw(EMPTY.step);
+    setBasicsRaw(EMPTY.basics);
+    setSportRaw(EMPTY.sport);
+    setSportIdRaw(EMPTY.sportId);
+    setTeamRaw(EMPTY.team);
+  };
 
   const isMinor = isMinorFromDob(basics.dob);
 
@@ -506,16 +569,13 @@ function ThemedHome({
           <HomeCard n="02" title="Contracts & payments"
             blurb="Drop in your NIL deals — we pull the numbers that matter."
             href="/intake/contracts" primary={primary} />
-          <HomeCard n="03" title="Jock tax estimate"
-            blurb="How your team travel affects what you owe, state by state."
-            href="/tools/jock-tax" primary={primary} />
-          <HomeCard n="04" title="Consolidated tax"
-            blurb="All income, all deductions, one estimated liability."
+          <HomeCard n="03" title="Estimated tax"
+            blurb="All income, all deductions, per-state sourcing, one estimated liability."
             href="/tools/consolidated-tax" primary={primary} />
-          <HomeCard n="05" title="Expense form"
+          <HomeCard n="04" title="Expense form"
             blurb="Standard and athlete-specific line items. Fill and submit."
             href="/intake/expenses" primary={primary} />
-          <HomeCard n="06" title="State rules"
+          <HomeCard n="05" title="State rules"
             blurb="The NIL rules for every state you play in. What to disclose, and where."
             href="/tools/state-nil" primary={primary} />
         </div>

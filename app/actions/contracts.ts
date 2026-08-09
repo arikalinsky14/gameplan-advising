@@ -34,6 +34,7 @@ export async function listContracts(athleteIdOverride?: string) {
     return await prisma.contract.findMany({
       where: { athleteId },
       orderBy: { createdAt: "desc" },
+      include: { workLog: { orderBy: { date: "asc" } } },
     });
   } catch {
     return [];
@@ -51,6 +52,7 @@ export async function createContract(
     termEnd?: string | null;
     exclusivity?: string | null;
     deliverables?: string | null;
+    workState?: string | null;
   },
   athleteIdOverride?: string,
 ) {
@@ -75,6 +77,11 @@ export async function createContract(
         termEnd: input.termEnd ? new Date(input.termEnd) : null,
         exclusivity: input.exclusivity || null,
         deliverables: input.deliverables || null,
+        workState: input.workState ? input.workState.toUpperCase() : null,
+        // A work state entered on creation is a positive confirmation from the
+        // person entering the deal — mark it confirmed. Unentered stays
+        // unconfirmed so the tax calc surfaces it for advisor review.
+        workStateConfirmed: !!input.workState,
       },
     });
     revalidatePath("/intake/contracts");

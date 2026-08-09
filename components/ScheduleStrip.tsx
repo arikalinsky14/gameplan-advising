@@ -58,18 +58,16 @@ export default function ScheduleStrip({
       {state.kind === "done" && state.data.status === "no-key" && (
         <div className="py-6 text-sm text-slate leading-relaxed">
           Schedule feed not configured yet. Add a{" "}
-          <code className="text-xs bg-mist px-1 rounded-sm">CBD_API_KEY</code> environment
-          variable (CollegeBasketballData Patreon Tier 3 — $10/mo) and this section fills in
-          automatically. See <em>docs/PHASE-1-HANDOFF.md</em> § D1.
+          <code className="text-xs bg-mist px-1 rounded-sm">CFBD_API_KEY</code> environment
+          variable (free from collegefootballdata.com) and this section fills in
+          automatically.
         </div>
       )}
 
       {state.kind === "done" && state.data.status === "not-supported" && (
         <div className="py-6 text-sm text-slate leading-relaxed">
-          Live schedule integration for {sport} isn&rsquo;t wired yet. Men&rsquo;s basketball
-          is available today via CollegeBasketballData; football drops in the same way on
-          the same subscription. Women&rsquo;s basketball needs a spike to confirm CBD
-          coverage before we ship.
+          Live schedule integration for {sport} isn&rsquo;t wired yet. Football is available
+          today via CollegeFootballData; other sports are pending vendor selection.
         </div>
       )}
 

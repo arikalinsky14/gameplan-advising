@@ -1,7 +1,18 @@
 "use client";
+// SCOPE — READ BEFORE CHANGING:
+// The duty-day math here is CORRECT machinery, but it's the wrong tool for
+// NIL income (NIL contracts are payment for name/image/likeness work, not
+// for athletic performance — see docs/TAX-CALCULATOR-ACCURACY-GUIDE.md §6).
+// It is a valid tool for House-settlement revenue-share income, which is a
+// separate product-scope decision pending with Brody.
+//
+// Until that decision lands, this page has been removed from the athlete-
+// facing tool list; leave the machinery here, do not re-point it at NIL
+// income.
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { STATE_TAX_RATES, rateFor } from "@/content/tax";
+import { STATE_TAX_RATES, rateFor, applyHomeStateCredit } from "@/content/tax";
 
 // Sample season — placeholder pending real schedule API integration.
 // Each entry is: state, kind, label. Duty days = 1 game day + 1 day before + 1 day after,
@@ -101,8 +112,10 @@ export default function JockTaxPage() {
   const awayTax = allocations.filter((r) => r.state !== homeState).reduce((s, r) => s + r.tax, 0);
   const homeStateRate = rateFor(homeState).rate;
   const homeStateGrossLiability = income * homeStateRate;
-  const homeStateCredit = Math.min(awayTax, homeStateGrossLiability);
-  const homeStateAfterCredit = Math.max(0, homeStateGrossLiability - homeStateCredit);
+  const { credit: homeStateCredit, homeStateAfterCredit } = applyHomeStateCredit(
+    homeStateGrossLiability,
+    awayTax,
+  );
   const totalAfterCredit = awayTax + homeStateAfterCredit;
 
   return (
