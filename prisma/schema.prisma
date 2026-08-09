@@ -111,7 +111,9 @@ model Goal {
 
   bucket     GoalBucket
   text       String
-  years      String   // e.g. "2026-2027" — free-form on the client, structured on export
+  years      String   // e.g. "2026-2027" — free-form fallback for compatibility with early records
+  startDate  DateTime?
+  endDate    DateTime?
   amount     Float?   // optional; eMoney expects an amount on export
 
   createdAt  DateTime @default(now())

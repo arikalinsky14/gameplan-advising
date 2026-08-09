@@ -3,6 +3,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TIER1_SPORTS, TIER2_SPORTS, teamsByConference, TEAMS, type Team, type Sport } from "@/content/teams";
+import { coordsFor } from "@/content/team-coords";
+import USMap from "@/components/USMap";
+import ScheduleStrip from "@/components/ScheduleStrip";
 
 type Step = "intro" | "basics" | "sport" | "team" | "confirm" | "home";
 
@@ -323,6 +326,11 @@ function TeamStep({
               <button
                 key={t.id}
                 onClick={() => onPick(t)}
+                onDoubleClick={() => {
+                  onPick(t);
+                  onConfirm();
+                }}
+                title="Double-click to confirm"
                 className={`text-left border rounded-sm p-4 transition ${
                   active
                     ? "border-accent bg-mist"
@@ -410,38 +418,43 @@ function TeamBadge({ team, size = 40 }: { team: Team; size?: number }) {
 
 /* -------- Step: Pin drop confirm -------- */
 function PinDropStep({ team, onDone }: { team: Team; onDone: () => void }) {
+  const [lat, lng] = coordsFor(team.id, team.state);
   return (
     <section className="min-h-[80vh] flex items-center justify-center">
-      <div className="max-w-3xl mx-auto px-6 text-center py-24">
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0, y: -60 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto"
-          style={{ color: team.primary }}
-        >
-          <svg viewBox="0 0 24 24" width="72" height="72" fill="currentColor" aria-hidden>
-            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z"/>
-          </svg>
-        </motion.div>
+      <div className="max-w-4xl mx-auto px-6 text-center py-16">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="eyebrow mt-8">Home base</div>
+          <div className="eyebrow">Home base</div>
           <div className="display text-4xl md:text-6xl mt-3 text-ink">
             {team.city}
             {team.state ? `, ${team.state}` : ""}
           </div>
-          <div className="mt-3 text-slate">{team.school} · {team.conference}</div>
+          <div className="mt-3 text-slate">{team.school}</div>
         </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-8"
+        >
+          <USMap
+            lat={lat}
+            lng={lng}
+            color={team.primary}
+            label={team.state ? `${team.city.toUpperCase()}, ${team.state}` : team.city.toUpperCase()}
+          />
+        </motion.div>
+
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
+          transition={{ delay: 1.0 }}
           onClick={onDone}
-          className="mt-12 rounded-full bg-ink text-paper px-8 py-3 text-sm hover:bg-accent transition"
+          className="mt-8 rounded-full bg-ink text-paper px-8 py-3 text-sm hover:bg-accent transition"
         >
           Enter your home →
         </motion.button>
@@ -506,6 +519,8 @@ function ThemedHome({
             blurb="The NIL rules for every state you play in. What to disclose, and where."
             href="/tools/state-nil" primary={primary} />
         </div>
+
+        <ScheduleStrip sport={sport} school={team?.school ?? null} />
 
         <div className="mt-16 border-t border-line pt-8 flex flex-wrap items-center justify-between gap-4">
           <p className="text-xs text-slate italic max-w-lg">

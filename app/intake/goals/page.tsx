@@ -36,6 +36,8 @@ export default async function GoalsPage() {
             bucket: g.bucket as "SHORT" | "MEDIUM" | "LONG",
             text: g.text,
             years: g.years,
+            startDate: g.startDate ? g.startDate.toISOString().slice(0, 10) : null,
+            endDate: g.endDate ? g.endDate.toISOString().slice(0, 10) : null,
           }))} />
         )}
 

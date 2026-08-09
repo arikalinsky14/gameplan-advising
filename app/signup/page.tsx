@@ -1,14 +1,43 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signup } from "@/app/actions/auth";
 
+const DRAFT_KEY = "gpa.signup.draft.v1";
+
+type Draft = {
+  role: "CLIENT" | "ADVISOR";
+  displayName: string;
+  email: string;
+};
+
+const EMPTY: Draft = { role: "CLIENT", displayName: "", email: "" };
+
 export default function SignupPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<"CLIENT" | "ADVISOR">("CLIENT");
+  const [draft, setDraft] = useState<Draft>(EMPTY);
   const [pending, startTransition] = useTransition();
+
+  // Hydrate the form from sessionStorage — surviving the back button, refresh,
+  // and accidental navigation without asking the user to type their info twice.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) setDraft({ ...EMPTY, ...JSON.parse(raw) });
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* ignore */ }
+  }, [draft]);
+
+  const clearDraft = () => {
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  };
 
   return (
     <section className="min-h-[80vh] flex items-center">
@@ -26,10 +55,13 @@ export default function SignupPage() {
           action={(fd) =>
             startTransition(async () => {
               setError(null);
-              fd.set("role", role);
+              fd.set("role", draft.role);
               const res = await signup(fd);
               if (!res.ok) setError(res.error);
-              else router.push("/dashboard");
+              else {
+                clearDraft();
+                router.push("/dashboard");
+              }
             })
           }
         >
@@ -38,9 +70,9 @@ export default function SignupPage() {
               <button
                 key={r}
                 type="button"
-                onClick={() => setRole(r)}
+                onClick={() => setDraft((d) => ({ ...d, role: r }))}
                 className={`rounded-sm border py-3 text-sm transition ${
-                  role === r
+                  draft.role === r
                     ? "border-ink bg-ink text-paper"
                     : "border-line bg-paper text-ink hover:border-accent"
                 }`}
@@ -52,16 +84,37 @@ export default function SignupPage() {
 
           <label className="block">
             <span className="field-label block mb-2">Full name</span>
-            <input name="displayName" className="input" autoComplete="name" />
+            <input
+              name="displayName"
+              className="input"
+              autoComplete="name"
+              value={draft.displayName}
+              onChange={(e) => setDraft((d) => ({ ...d, displayName: e.target.value }))}
+            />
           </label>
           <label className="block">
             <span className="field-label block mb-2">Email</span>
-            <input name="email" type="email" required autoComplete="email" className="input" />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              className="input"
+              value={draft.email}
+              onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+            />
           </label>
           <label className="block">
             <span className="field-label block mb-2">Password</span>
-            <input name="password" type="password" required autoComplete="new-password" minLength={8} className="input" />
-            <span className="text-[11px] text-slate mt-1 block">Minimum 8 characters.</span>
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="new-password"
+              minLength={8}
+              className="input"
+            />
+            <span className="text-[11px] text-slate mt-1 block">Minimum 8 characters. Not saved locally.</span>
           </label>
 
           {error && (
@@ -78,11 +131,22 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <div className="mt-8 text-sm text-slate">
-          Already have an account?{" "}
-          <Link href="/login" className="text-accent hover:text-ink">
-            Sign in
-          </Link>
+        <div className="mt-8 flex items-center justify-between text-sm text-slate">
+          <span>
+            Already have an account?{" "}
+            <Link href="/login" className="text-accent hover:text-ink">
+              Sign in
+            </Link>
+          </span>
+          {(draft.displayName || draft.email) && (
+            <button
+              type="button"
+              onClick={() => { setDraft(EMPTY); clearDraft(); }}
+              className="text-xs text-slate hover:text-accent"
+            >
+              clear form
+            </button>
+          )}
         </div>
       </div>
     </section>

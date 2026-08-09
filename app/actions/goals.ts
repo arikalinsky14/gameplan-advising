@@ -66,7 +66,13 @@ export async function addGoal(bucket: "SHORT" | "MEDIUM" | "LONG", athleteIdOver
 
 export async function updateGoal(
   id: string,
-  patch: { text?: string; years?: string; amount?: number | null },
+  patch: {
+    text?: string;
+    years?: string;
+    amount?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
 ) {
   if (!isDbConfigured()) return { ok: false as const, error: "Database not configured" };
   const s = await getSession();
@@ -84,6 +90,12 @@ export async function updateGoal(
         ...(patch.text !== undefined ? { text: patch.text } : {}),
         ...(patch.years !== undefined ? { years: patch.years } : {}),
         ...(patch.amount !== undefined ? { amount: patch.amount } : {}),
+        ...(patch.startDate !== undefined
+          ? { startDate: patch.startDate ? new Date(patch.startDate) : null }
+          : {}),
+        ...(patch.endDate !== undefined
+          ? { endDate: patch.endDate ? new Date(patch.endDate) : null }
+          : {}),
       },
     });
     revalidatePath("/intake/goals");

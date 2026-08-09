@@ -114,7 +114,11 @@ export function buildFactsPayload(a: AthleteWithChildren): EMoneyFactsPayload {
     })),
 
     goals: a.goals.map<EMoneyGoal>((g) => {
-      const [start, end] = parseYearsRange(g.years);
+      // Prefer real dates from the picker; fall back to parsing the free-text
+      // years string for legacy records.
+      const [parsedStart, parsedEnd] = parseYearsRange(g.years);
+      const start = g.startDate ? g.startDate.toISOString().slice(0, 10) : parsedStart;
+      const end = g.endDate ? g.endDate.toISOString().slice(0, 10) : parsedEnd;
       return {
         name: g.text || `[${g.bucket.toLowerCase()}-term goal]`,
         amount: g.amount ?? 0,
